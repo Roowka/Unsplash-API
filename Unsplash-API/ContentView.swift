@@ -8,75 +8,133 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State var imageList: [UnsplashPhoto] = []
-
-        // Déclaration d'une fonction asynchrone
-        func loadData() async {
-            // Créez une URL avec la clé d'API
-            let url = URL(string: "https://api.unsplash.com/photos?client_id=\(ConfigurationManager.instance.plistDictionnary.clientId)")!
-
-            do {
-                // Créez une requête avec cette URL
-                let request = URLRequest(url: url)
-
-                // Faites l'appel réseau
-                let (data, _) = try await URLSession.shared.data(for: request)
-
-                // Transformez les données en JSON
-                let deserializedData = try JSONDecoder().decode([UnsplashPhoto].self, from: data)
-
-                // Mettez à jour l'état de la vue
-                imageList = deserializedData
-
-            } catch {
-                print("Error: \(error)")
-            }
-        }
+    @StateObject var feedState = FeedState()
+    @State private var selectedPhoto: UnsplashPhoto?
+    private let placeholderCount = 12
+    private let nbTopics = 10
     
     var body: some View {
-        VStack {
-            // le bouton va lancer l'appel réseau
-            Button(action: {
-                Task {
-                    await loadData()
+        NavigationView {
+            VStack {
+                Button(action: {
+                    feedState.fetchHomeFeed()
+                    feedState.fetchTopics()
+                }, label: {
+                    Text("Load Data")
+                })
+                
+                if let errorMessage = feedState.errorMessage {
+                    Text(errorMessage)
+                        .foregroundColor(.red)
+                        .padding()
                 }
-            }, label: {
-                Text("Load Data")
-            })
-            //-----------------------------------------
-            ScrollView {
-                LazyVGrid(
-                    columns: [GridItem(.flexible(minimum: 150), spacing: 8),
-                              GridItem(.flexible(minimum: 150), spacing: 8)],
-                    spacing: 8
-                ) {
-                    ForEach(imageList, id: \.id) {image  in
-                        AsyncImage(url: URL(string: image.urls.full)) { phase in
-                            switch phase {
-                            case .empty:
-                                Rectangle()
-                                    .fill(Color.gray.opacity(0.5))
-                                    .frame(height: 150)
-                                    .cornerRadius(12)
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .frame(height: 150)
-                                    .clipped()
-                                    .cornerRadius(12)
-                            case .failure:
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .frame(height: 150)
-                                    .foregroundColor(.red)
-                            @unknown default:
-                                EmptyView()
+                
+                HStack {
+                    ScrollView(.horizontal, showsIndicators: false){
+                        HStack(spacing: 16){
+                            if feedState.topics.isEmpty {
+                                ForEach(0..<nbTopics, id: \.self) { _ in
+                                    VStack{
+                                        Rectangle()
+                                            .fill(Color.gray.opacity(0.5))
+                                            .frame(width: 100, height: 50)
+                                            .cornerRadius(12)
+                                        Rectangle()
+                                            .fill(Color.gray.opacity(0.5))
+                                            .frame(width: 75, height: 10)
+                                            .cornerRadius(12)
+                                    }
+                                }
+                            } else {
+                                ForEach(feedState.topics) { topic in
+                                    NavigationLink(destination: TopicFeedView(topic: topic, feedState: feedState)) {
+                                        
+                                        VStack {
+                                            AsyncImage(url: URL(string: topic.cover_photo.urls.small)) { phase in
+                                                switch phase {
+                                                case .empty:
+                                                    Rectangle()
+                                                        .fill(Color.gray.opacity(0.5))
+                                                        .frame(width: 100, height: 50)
+                                                        .cornerRadius(12)
+                                                case .success(let image):
+                                                    image
+                                                        .resizable()
+                                                        .scaledToFill()
+                                                        .frame(width: 100, height: 50)
+                                                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                                                case .failure:
+                                                    Image(systemName: "exclamationmark.triangle.fill")
+                                                        .frame(width: 100, height: 50)
+                                                        .foregroundColor(.red)
+                                                @unknown default:
+                                                    EmptyView()
+                                                }
+                                            }
+                                            Text(topic.title)
+                                                .font(.caption)
+                                                .lineLimit(1)
+                                        }
+                                        .padding(.horizontal, 8)
+                                    }
+                                }
                             }
                         }
                     }
                 }
                 .padding()
+                
+                //-----------------------------------------
+                ScrollView {
+                    LazyVGrid(
+                        columns: [GridItem(.flexible(minimum: 150), spacing: 8),
+                                  GridItem(.flexible(minimum: 150), spacing: 8)],
+                        spacing: 8
+                    ) {
+                        if feedState.homeFeed.isEmpty {
+                            ForEach(0..<placeholderCount, id: \.self) { _ in
+                                Rectangle()
+                                    .fill(Color.gray.opacity(0.5))
+                                    .frame(height: 150)
+                                    .cornerRadius(12)
+                            }
+                        } else {
+                            ForEach(feedState.homeFeed) {image  in
+                                Button(action: {
+                                    selectedPhoto = image
+                                }){
+                                    AsyncImage(url: URL(string: image.urls.small)) { phase in
+                                        switch phase {
+                                        case .empty:
+                                            ProgressView()
+                                                .frame(height: 150)
+                                                .frame(maxWidth: .infinity)
+                                        case .success(let image):
+                                            image
+                                                .resizable()
+                                                .frame(height: 150)
+                                                .clipped()
+                                                .cornerRadius(12)
+                                        case .failure:
+                                            Image(systemName: "exclamationmark.triangle.fill")
+                                                .frame(height: 150)
+                                                .foregroundColor(.red)
+                                        @unknown default:
+                                            EmptyView()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .padding()
+                }
+                //-----------------------------------------
             }
-            //-----------------------------------------
+            .navigationTitle("Feed")
+            .sheet(item: $selectedPhoto) { photo in
+                ImageDetailView(photo: photo)
+            }
         }
     }
 }
