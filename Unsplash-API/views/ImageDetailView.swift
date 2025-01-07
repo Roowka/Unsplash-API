@@ -65,7 +65,6 @@ struct ImageDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    // Fonction pour récupérer l'URL en fonction du format sélectionné
     private func urlForSelectedFormat() -> String {
         switch selectedFormat {
         case .regular:
@@ -77,28 +76,28 @@ struct ImageDetailView: View {
         }
     }
 
-    // Fonction pour télécharger l'image
+
     private func downloadImage() {
-        guard let url = URL(string: urlForSelectedFormat()) else { return }
-
-        let task = URLSession.shared.downloadTask(with: url) { localURL, response, error in
-            guard let localURL = localURL, error == nil else {
-                print("Erreur lors du téléchargement: \(error?.localizedDescription ?? "Inconnue")")
-                return
-            }
-
-            do {
-                let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-                let destinationURL = documents.appendingPathComponent(url.lastPathComponent)
-
-                try FileManager.default.moveItem(at: localURL, to: destinationURL)
-
-                print("Image téléchargée à : \(destinationURL)")
-            } catch {
-                print("Erreur lors de l'enregistrement : \(error.localizedDescription)")
-            }
-        }
-        task.resume()
+//        guard let url = URL(string: urlForSelectedFormat()) else { return }
+//
+//        let task = URLSession.shared.downloadTask(with: url) { localURL, response, error in
+//            guard let localURL = localURL, error == nil else {
+//                print("Erreur lors du téléchargement: \(error?.localizedDescription ?? "Inconnue")")
+//                return
+//            }
+//
+//            do {
+//                let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+//                let destinationURL = documents.appendingPathComponent(url.lastPathComponent)
+//
+//                try FileManager.default.moveItem(at: localURL, to: destinationURL)
+//
+//                print("Image téléchargée à : \(destinationURL)")
+//            } catch {
+//                print("Erreur lors de l'enregistrement : \(error.localizedDescription)")
+//            }
+//        }
+//        task.resume()
     }
 }
 
