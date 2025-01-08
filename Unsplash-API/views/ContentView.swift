@@ -20,7 +20,7 @@ struct ContentView: View {
                     feedState.fetchHomeFeed()
                     feedState.fetchTopics()
                 }, label: {
-                    Text("Load Data")
+                    Text("Load...")
                 })
                 
                 if let errorMessage = feedState.errorMessage {

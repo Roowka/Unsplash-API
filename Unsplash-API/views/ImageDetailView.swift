@@ -6,10 +6,12 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 struct ImageDetailView: View {
     let photo: UnsplashPhoto
     @State private var selectedFormat: ImageFormat = .regular
+    @State private var downloadSuccessMessage: String?
 
     enum ImageFormat: String, CaseIterable {
         case regular = "Regular"
@@ -27,7 +29,6 @@ struct ImageDetailView: View {
                 .font(.headline)
                 .padding()
 
-            // Picker pour les formats
             Picker("", selection: $selectedFormat) {
                 ForEach(ImageFormat.allCases, id: \.self) { format in
                     Text(format.displayName).tag(format)
@@ -36,7 +37,6 @@ struct ImageDetailView: View {
             .pickerStyle(SegmentedPickerStyle())
             .padding()
 
-            // Image affichée
             AsyncImage(url: URL(string: urlForSelectedFormat())) { phase in
                 switch phase {
                 case .empty:
@@ -57,10 +57,19 @@ struct ImageDetailView: View {
                 }
             }
 
-            // Bouton de téléchargement
-            Button(action: downloadImage, label: {
-                Text("Télécharger")
+            Button(action: {
+                downloadImage(from: photo.urls.full)
+            }, label: {
+                Text("\(Image(systemName: "square.and.arrow.up")) Télécharger")
             })
+            .padding()
+            
+            // Message de succès
+            if let message = downloadSuccessMessage {
+                Text(message)
+                    .foregroundColor(.green)
+                    .padding()
+            }
         }
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -77,27 +86,42 @@ struct ImageDetailView: View {
     }
 
 
-    private func downloadImage() {
-//        guard let url = URL(string: urlForSelectedFormat()) else { return }
-//
-//        let task = URLSession.shared.downloadTask(with: url) { localURL, response, error in
-//            guard let localURL = localURL, error == nil else {
-//                print("Erreur lors du téléchargement: \(error?.localizedDescription ?? "Inconnue")")
-//                return
-//            }
-//
-//            do {
-//                let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-//                let destinationURL = documents.appendingPathComponent(url.lastPathComponent)
-//
-//                try FileManager.default.moveItem(at: localURL, to: destinationURL)
-//
-//                print("Image téléchargée à : \(destinationURL)")
-//            } catch {
-//                print("Erreur lors de l'enregistrement : \(error.localizedDescription)")
-//            }
-//        }
-//        task.resume()
+    func downloadImage(from urlString: String) {
+        guard let url = URL(string: urlString) else {
+            print("URL invalide.")
+            return
+        }
+        
+        URLSession.shared.dataTask(with: url) { data, response, error in
+            if let error = error {
+                print("Erreur de téléchargement : \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self.downloadSuccessMessage = "Erreur lors du téléchargement."
+                }
+                return
+            }
+            
+            guard let data = data, let image = UIImage(data: data) else {
+                print("Impossible de convertir l'image téléchargée.")
+                DispatchQueue.main.async {
+                    self.downloadSuccessMessage = "Échec lors de la conversion de l'image."
+                }
+                return
+            }
+            
+            PHPhotoLibrary.requestAuthorization { status in
+                if status == .authorized {
+                    UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                    DispatchQueue.main.async {
+                        self.downloadSuccessMessage = "✅ Image téléchargée avec succès !"
+                    }
+                } else {
+                    DispatchQueue.main.async {
+                        self.downloadSuccessMessage = "⚠️ Permission refusée pour sauvegarder l'image."
+                    }
+                }
+            }
+        }.resume()
     }
 }
 

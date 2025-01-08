@@ -62,12 +62,12 @@ struct UnsplashAPI {
         var components = unsplashApiBaseUrl()
         components.path = "/topics"
         components.queryItems?.append(URLQueryItem(name: "per_page", value: "10"))
+        components.queryItems?.append(URLQueryItem(name: "order_by", value: "featured"))
         
         guard let url = components.url else { throw URLError(.badURL) }
   
         let (data, _) = try await URLSession.shared.data(from: url)
         let topics = try JSONDecoder().decode([Topic].self, from: data)
-        print(topics)
         return topics
     }
 
